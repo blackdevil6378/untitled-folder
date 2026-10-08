@@ -27,7 +27,7 @@ export function normalizeOllamaUrl(rawUrl?: string): string {
  */
 export async function checkOllamaAvailable(
   baseUrl: string = DEFAULT_OLLAMA_URL,
-  timeoutMs: number = 5000
+  timeoutMs: number = 3000
 ): Promise<{ available: boolean; error?: string; workingUrl: string }> {
   const normalized = normalizeOllamaUrl(baseUrl);
   const candidates = [normalized];
@@ -64,7 +64,7 @@ export async function checkOllamaAvailable(
 export async function getOllamaModels(
   baseUrl: string = DEFAULT_OLLAMA_URL
 ): Promise<{ models: string[]; workingUrl: string }> {
-  const check = await checkOllamaAvailable(baseUrl, 5000);
+  const check = await checkOllamaAvailable(baseUrl, 3000);
   if (!check.available) {
     return { models: [], workingUrl: check.workingUrl };
   }
@@ -72,7 +72,7 @@ export async function getOllamaModels(
   try {
     const res = await fetch(`${check.workingUrl}/api/tags`, {
       method: "GET",
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return { models: [], workingUrl: check.workingUrl };
     const data = await res.json();
@@ -128,8 +128,7 @@ export async function generateOllamaContent(params: {
   systemInstruction?: string;
   timeoutMs?: number;
 }): Promise<string> {
-  const targetCheck = await checkOllamaAvailable(params.baseUrl || DEFAULT_OLLAMA_URL, 5000);
-  const baseUrl = targetCheck.workingUrl;
+  const baseUrl = normalizeOllamaUrl(params.baseUrl || DEFAULT_OLLAMA_URL);
   const model = params.model || DEFAULT_OLLAMA_MODEL;
   const messages = convertGeminiToOllamaMessages(params.contents, params.systemInstruction);
 
@@ -142,6 +141,7 @@ export async function generateOllamaContent(params: {
       stream: false,
       options: {
         temperature: 0.7,
+        num_predict: 1024,
       },
     }),
     signal: AbortSignal.timeout(params.timeoutMs || 45000),
@@ -153,12 +153,17 @@ export async function generateOllamaContent(params: {
   }
 
   const data = await res.json();
-  return data?.message?.content || "";
+  const content = data?.message?.content || "";
+  const thinking = data?.message?.thinking || "";
+
+  if (content) return content;
+  if (thinking) return `*💭 Thinking:*\n${thinking}`;
+  return "";
 }
 
 /**
- * Streaming chat with Ollama, converted to Gemini SSE chunks
- * for seamless frontend compatibility with AI Mentor.
+ * Streaming chat with Ollama, converted to Gemini SSE chunks.
+ * Seamlessly handles both standard tokens AND Qwen 3.5 thinking tokens!
  */
 export async function streamOllamaChatAsGeminiSSE(params: {
   baseUrl?: string;
@@ -166,8 +171,7 @@ export async function streamOllamaChatAsGeminiSSE(params: {
   contents: Array<{ role: string; parts: Array<{ text: string }> }>;
   systemInstruction?: string;
 }): Promise<Response> {
-  const targetCheck = await checkOllamaAvailable(params.baseUrl || DEFAULT_OLLAMA_URL, 5000);
-  const baseUrl = targetCheck.workingUrl;
+  const baseUrl = normalizeOllamaUrl(params.baseUrl || DEFAULT_OLLAMA_URL);
   const model = params.model || DEFAULT_OLLAMA_MODEL;
   const messages = convertGeminiToOllamaMessages(params.contents, params.systemInstruction);
 
@@ -180,6 +184,7 @@ export async function streamOllamaChatAsGeminiSSE(params: {
       stream: true,
       options: {
         temperature: 0.7,
+        num_predict: 1500,
       },
     }),
   });
@@ -199,7 +204,28 @@ export async function streamOllamaChatAsGeminiSSE(params: {
 
   const readable = new ReadableStream({
     async start(controller) {
+      // Immediately send SSE comment so browser fetch initiates and doesn't time out
+      controller.enqueue(encoder.encode(": connected\n\n"));
+
       let buffer = "";
+      let hasEmittedThinkingHeader = false;
+      let hasFinishedThinking = false;
+
+      const emitText = (text: string) => {
+        if (!text) return;
+        const ssePayload = {
+          candidates: [
+            {
+              content: {
+                parts: [{ text }],
+                role: "model",
+              },
+            },
+          ],
+        };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(ssePayload)}\n\n`));
+      };
+
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -207,7 +233,7 @@ export async function streamOllamaChatAsGeminiSSE(params: {
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
-          buffer = lines.pop() || ""; // Keep unparsed trailing chunk
+          buffer = lines.pop() || ""; // Keep trailing partial chunk
 
           for (const line of lines) {
             const trimmed = line.trim();
@@ -216,53 +242,44 @@ export async function streamOllamaChatAsGeminiSSE(params: {
             try {
               const parsed = JSON.parse(trimmed);
               const content = parsed.message?.content || "";
+              const thinking = parsed.message?.thinking || "";
 
+              // Stream thinking tokens (Qwen 3.5 reasoning)
+              if (thinking) {
+                if (!hasEmittedThinkingHeader) {
+                  hasEmittedThinkingHeader = true;
+                  emitText("> *💭 Thinking:*\n> ");
+                }
+                const formatted = thinking.replace(/\n/g, "\n> ");
+                emitText(formatted);
+              }
+
+              // Stream main answer tokens
               if (content) {
-                // Format matching Gemini SSE chunk
-                const ssePayload = {
-                  candidates: [
-                    {
-                      content: {
-                        parts: [{ text: content }],
-                        role: "model",
-                      },
-                    },
-                  ],
-                };
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify(ssePayload)}\n\n`)
-                );
+                if (hasEmittedThinkingHeader && !hasFinishedThinking) {
+                  hasFinishedThinking = true;
+                  emitText("\n\n---\n\n");
+                }
+                emitText(content);
               }
 
               if (parsed.done) {
                 controller.enqueue(encoder.encode("data: [DONE]\n\n"));
               }
             } catch {
-              // Ignore partial json parse error and continue
+              // Ignore partial JSON parse error
             }
           }
         }
 
-        // Process leftover buffer if any
+        // Process leftover buffer
         if (buffer.trim()) {
           try {
             const parsed = JSON.parse(buffer.trim());
             const content = parsed.message?.content || "";
-            if (content) {
-              const ssePayload = {
-                candidates: [
-                  {
-                    content: {
-                      parts: [{ text: content }],
-                      role: "model",
-                    },
-                  },
-                ],
-              };
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify(ssePayload)}\n\n`)
-              );
-            }
+            const thinking = parsed.message?.thinking || "";
+            if (content) emitText(content);
+            else if (thinking) emitText(thinking);
           } catch {
             // ignore
           }

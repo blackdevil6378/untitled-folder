@@ -153,8 +153,8 @@ ${JSON.stringify(progressSummary, null, 2)}`;
     const query = textToSend || inputMessage;
     if (!query.trim() || isStreaming) return;
 
-    if (!settings.geminiKey) {
-      setErrorMessage("Gemini API Key is not set. Please add it in Settings.");
+    if (!settings.geminiKey && settings.aiProvider === "gemini") {
+      setErrorMessage("Gemini API Key is not set. Please add it in Settings or switch to Local Ollama.");
       return;
     }
 
@@ -256,7 +256,12 @@ ${JSON.stringify(progressSummary, null, 2)}`;
           });
         }
       } else {
-        setErrorMessage(err.message || "Failed to communicate with Gemini API.");
+        const msg = err.message || "Failed to communicate with AI Mentor.";
+        setErrorMessage(
+          msg.includes("fetch failed")
+            ? "Connection failed. Please ensure the dev server and Ollama (http://127.0.0.1:11434) are running."
+            : msg
+        );
       }
     } finally {
       setIsStreaming(false);
