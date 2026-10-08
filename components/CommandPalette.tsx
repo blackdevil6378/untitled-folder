@@ -14,6 +14,7 @@ import {
   Timer,
   BookOpen,
   ArrowRight,
+  Shield,
 } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
 
@@ -81,6 +82,7 @@ export function CommandPalette() {
   const navigationOptions = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     { label: "Subjects", href: "/subjects", icon: FolderKanban },
+    { label: "Ethical Hacking Labs", href: "/ethical-hacking", icon: Shield },
     { label: "Calendar & Schedule", href: "/calendar", icon: CalendarDays },
     { label: "AI Mentor Doubt Solver", href: "/ai-mentor", icon: BotMessageSquare },
     { label: "Analytics & Streaks", href: "/analytics", icon: BarChart3 },

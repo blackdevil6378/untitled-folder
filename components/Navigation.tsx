@@ -14,12 +14,14 @@ import {
   Timer,
   Search,
   Sparkles,
+  Shield,
 } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Subjects", href: "/subjects", icon: FolderKanban },
+  { label: "Ethical Hacking", href: "/ethical-hacking", icon: Shield, badge: "LABS" },
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
   { label: "AI Mentor", href: "/ai-mentor", icon: BotMessageSquare, badge: "AI" },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
