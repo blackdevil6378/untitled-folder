@@ -1,0 +1,17 @@
+{
+  "name": "Study Tracker - Command Center",
+  "short_name": "StudyTracker",
+  "description": "Personal study command center with YouTube playlist tracking, auto-planner, and AI Mentor.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07070c",
+  "theme_color": "#00f0ff",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

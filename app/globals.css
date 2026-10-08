@@ -1,0 +1,104 @@
+@import "katex/dist/katex.min.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: 'Inter', system-ui, sans-serif;
+    --font-space-grotesk: 'Space Grotesk', sans-serif;
+    --font-jetbrains-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    background-color: #07070c;
+    color: #f3f4f6;
+    font-family: var(--font-inter);
+    overflow-x: hidden;
+  }
+
+  /* Custom sleek dark scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #07070c;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 240, 255, 0.4);
+  }
+}
+
+/* Glassmorphism Surface Utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-panel-hover:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* Neon glow helper classes */
+.glow-cyan {
+  box-shadow: 0 0 20px -3px rgba(0, 240, 255, 0.35);
+}
+.glow-purple {
+  box-shadow: 0 0 20px -3px rgba(168, 85, 247, 0.35);
+}
+.glow-green {
+  box-shadow: 0 0 20px -3px rgba(57, 255, 20, 0.35);
+}
+.glow-pink {
+  box-shadow: 0 0 20px -3px rgba(255, 46, 151, 0.35);
+}
+.glow-amber {
+  box-shadow: 0 0 20px -3px rgba(255, 184, 0, 0.35);
+}
+
+/* KaTeX styling overrides for dark theme */
+.katex {
+  color: #00f0ff !important;
+  font-size: 1.05em !important;
+}
+
+/* Markdown styling inside AI Mentor */
+.prose-dark {
+  color: #e2e8f0;
+}
+.prose-dark pre {
+  background-color: #0c0c16 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+.prose-dark code {
+  color: #00f0ff;
+  font-family: var(--font-jetbrains-mono);
+}
+.prose-dark table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+.prose-dark th, .prose-dark td {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.prose-dark th {
+  background: rgba(255, 255, 255, 0.05);
+  color: #00f0ff;
+}
