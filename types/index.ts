@@ -83,6 +83,10 @@ export interface Settings {
   eveningReminderEnabled: boolean;
   eveningReminderTime: string; // e.g. "20:00"
   autoMarkComplete: boolean; // 90% watched
+  // Local LLM (Ollama) fallback settings
+  aiProvider?: 'auto' | 'gemini' | 'ollama'; // default 'auto'
+  ollamaUrl?: string; // default 'http://127.0.0.1:11434'
+  ollamaModel?: string; // default 'qwen3.5:2b'
 }
 
 export interface YouTubePlaylistItem {

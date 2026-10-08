@@ -98,6 +98,9 @@ const defaultSettings: Settings = {
   eveningReminderEnabled: false,
   eveningReminderTime: "20:00",
   autoMarkComplete: true,
+  aiProvider: "auto",
+  ollamaUrl: "http://127.0.0.1:11434",
+  ollamaModel: "qwen3.5:2b",
 };
 
 export const useStudyStore = create<StudyStoreState>()(

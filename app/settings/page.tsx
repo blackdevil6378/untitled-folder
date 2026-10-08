@@ -18,6 +18,8 @@ import {
   User,
   Sparkles,
   Loader2,
+  Cpu,
+  Server,
 } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -46,6 +48,18 @@ export default function SettingsPage() {
   // Testing Key States
   const [testingGemini, setTestingGemini] = useState(false);
   const [testingYoutube, setTestingYoutube] = useState(false);
+  const [testingOllama, setTestingOllama] = useState(false);
+
+  // Ollama status
+  const [ollamaInfo, setOllamaInfo] = useState<{
+    available: boolean;
+    models: string[];
+    loading: boolean;
+  }>({
+    available: false,
+    models: [],
+    loading: true,
+  });
 
   // Storage calculation
   const [storageUsage, setStorageUsage] = useState({
@@ -56,6 +70,30 @@ export default function SettingsPage() {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check Ollama daemon on mount
+  useEffect(() => {
+    const checkOllama = async () => {
+      try {
+        const url = settings.ollamaUrl || "http://127.0.0.1:11434";
+        const res = await fetch(`/api/ollama?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        setOllamaInfo({
+          available: !!data.available,
+          models: data.models || [],
+          loading: false,
+        });
+        if (data.available && (!settings.ollamaModel || !data.models.includes(settings.ollamaModel))) {
+          if (data.defaultModel) {
+            updateSettings({ ollamaModel: data.defaultModel });
+          }
+        }
+      } catch {
+        setOllamaInfo({ available: false, models: [], loading: false });
+      }
+    };
+    checkOllama();
+  }, [settings.ollamaUrl]);
 
   useEffect(() => {
     setStorageUsage(getLocalStorageUsage());
@@ -139,6 +177,37 @@ export default function SettingsPage() {
       toast.error(`Error: ${err.message}`);
     } finally {
       setTestingYoutube(false);
+    }
+  };
+
+  const handleTestOllama = async () => {
+    setTestingOllama(true);
+    try {
+      const url = settings.ollamaUrl || "http://127.0.0.1:11434";
+      const res = await fetch("/api/ollama", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test",
+          url,
+          model: settings.ollamaModel || "qwen3.5:2b",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to reach Ollama server.");
+      }
+      toast.success(`✅ ${data.message}`);
+      setOllamaInfo({
+        available: true,
+        models: data.models || ollamaInfo.models,
+        loading: false,
+      });
+    } catch (err: any) {
+      toast.error(`Ollama Error: ${err.message}`);
+      setOllamaInfo((prev) => ({ ...prev, available: false, loading: false }));
+    } finally {
+      setTestingOllama(false);
     }
   };
 
@@ -473,6 +542,173 @@ export default function SettingsPage() {
         >
           Save All Credentials
         </button>
+      </div>
+
+      {/* Local LLM (Ollama) & AI Provider Selection */}
+      <div className="p-6 rounded-2xl glass-panel bg-white/[0.02] border border-white/10 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm uppercase tracking-wider font-semibold text-gray-300 font-heading flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-[#39ff14]" />
+              <span>Local LLM (Ollama) & Fallback Engine</span>
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Use your PC's local Ollama server as an automatic backup whenever Gemini quota is exhausted, offline, or unavailable.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {ollamaInfo.loading ? (
+              <span className="text-[11px] font-mono text-gray-400 flex items-center gap-1.5">
+                <Loader2 className="w-3 h-3 animate-spin text-[#00f0ff]" />
+                Checking...
+              </span>
+            ) : ollamaInfo.available ? (
+              <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Ollama Active
+              </span>
+            ) : (
+              <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 flex items-center gap-1.5 font-bold">
+                <span className="w-2 h-2 rounded-full bg-rose-400" />
+                Ollama Offline
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* AI Provider Strategy Selection */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-gray-200 block">
+            AI Provider Strategy
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              {
+                id: "auto",
+                title: "Auto-Fallback",
+                desc: "Gemini first. If quota/key fails, automatically switches to local Ollama.",
+                badge: "Recommended",
+              },
+              {
+                id: "ollama",
+                title: "Local Ollama Only",
+                desc: "Runs 100% on your PC. Private, offline, zero API keys required.",
+                badge: "Offline",
+              },
+              {
+                id: "gemini",
+                title: "Gemini Only",
+                desc: "Strictly use Google Gemini cloud models.",
+                badge: "Cloud",
+              },
+            ].map((prov) => {
+              const isSelected = (settings.aiProvider || "auto") === prov.id;
+              return (
+                <button
+                  key={prov.id}
+                  type="button"
+                  onClick={() => updateSettings({ aiProvider: prov.id as any })}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-[#00f0ff]/10 border-[#00f0ff] shadow-[0_0_15px_rgba(0,240,255,0.15)]"
+                      : "bg-white/[0.02] border-white/10 hover:border-white/20 hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-white">{prov.title}</span>
+                    <span
+                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                        isSelected
+                          ? "bg-[#00f0ff]/20 text-[#00f0ff]"
+                          : "bg-white/10 text-gray-400"
+                      }`}
+                    >
+                      {prov.badge}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 leading-relaxed">
+                    {prov.desc}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Ollama Configuration Inputs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/5">
+          {/* Base URL */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-300 flex items-center justify-between">
+              <span>Ollama Host URL</span>
+              <span className="text-[10px] text-gray-500 font-mono">Default: 127.0.0.1:11434</span>
+            </label>
+            <input
+              type="text"
+              value={settings.ollamaUrl || "http://127.0.0.1:11434"}
+              onChange={(e) => updateSettings({ ollamaUrl: e.target.value })}
+              placeholder="http://127.0.0.1:11434"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-[#39ff14]"
+            />
+          </div>
+
+          {/* Model Name */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-300 flex items-center justify-between">
+              <span>Local Model</span>
+              <span className="text-[10px] text-gray-500 font-mono">Installed: {ollamaInfo.models.length}</span>
+            </label>
+            {ollamaInfo.models.length > 0 ? (
+              <select
+                value={settings.ollamaModel || "qwen3.5:2b"}
+                onChange={(e) => updateSettings({ ollamaModel: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0c0d18] border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-[#39ff14] cursor-pointer"
+              >
+                {ollamaInfo.models.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={settings.ollamaModel || "qwen3.5:2b"}
+                onChange={(e) => updateSettings({ ollamaModel: e.target.value })}
+                placeholder="qwen3.5:2b"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-[#39ff14]"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Test Ollama Button */}
+        <div className="flex items-center justify-between pt-1">
+          <p className="text-[11px] text-gray-500">
+            {ollamaInfo.available
+              ? `Connected to Ollama with model '${settings.ollamaModel || "qwen3.5:2b"}'`
+              : "Tip: Start Ollama desktop or run 'ollama serve' in terminal"}
+          </p>
+
+          <button
+            onClick={handleTestOllama}
+            disabled={testingOllama}
+            className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-xs font-medium text-white transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+          >
+            {testingOllama ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#39ff14]" />
+                <span>Checking Ollama...</span>
+              </>
+            ) : (
+              <>
+                <Server className="w-3.5 h-3.5 text-[#39ff14]" />
+                <span>Test Local Ollama</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Notifications & Reminders */}

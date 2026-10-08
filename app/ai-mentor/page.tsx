@@ -188,7 +188,10 @@ ${JSON.stringify(progressSummary, null, 2)}`;
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-gemini-key": settings.geminiKey,
+          "x-gemini-key": settings.geminiKey || "",
+          "x-ollama-url": settings.ollamaUrl || "http://127.0.0.1:11434",
+          "x-ollama-model": settings.ollamaModel || "qwen3.5:2b",
+          "x-ai-provider": settings.aiProvider || "auto",
         },
         body: JSON.stringify({
           action: "chat_stream",
