@@ -183,7 +183,7 @@ export default function SettingsPage() {
   const handleTestOllama = async () => {
     setTestingOllama(true);
     try {
-      const url = settings.ollamaUrl || "http://127.0.0.1:11434";
+      const url = settings.ollamaUrl?.trim() || "http://127.0.0.1:11434";
       const res = await fetch("/api/ollama", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,6 +198,9 @@ export default function SettingsPage() {
         throw new Error(data.error || "Failed to reach Ollama server.");
       }
       toast.success(`✅ ${data.message}`);
+      if (data.workingUrl) {
+        updateSettings({ ollamaUrl: data.workingUrl });
+      }
       setOllamaInfo({
         available: true,
         models: data.models || ollamaInfo.models,

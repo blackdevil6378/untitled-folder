@@ -10,25 +10,52 @@ export interface OllamaModelInfo {
 }
 
 /**
- * Check if local Ollama daemon is reachable
+ * Normalizes host URL by adding protocol and stripping trailing slashes
+ */
+export function normalizeOllamaUrl(rawUrl?: string): string {
+  if (!rawUrl || !rawUrl.trim()) return DEFAULT_OLLAMA_URL;
+  let url = rawUrl.trim();
+  if (!/^https?:\/\//i.test(url)) {
+    url = `http://${url}`;
+  }
+  return url.replace(/\/+$/, "");
+}
+
+/**
+ * Check if local Ollama daemon is reachable.
+ * Tries both 127.0.0.1 and localhost for bulletproof Windows compatibility.
  */
 export async function checkOllamaAvailable(
   baseUrl: string = DEFAULT_OLLAMA_URL,
-  timeoutMs: number = 2500
-): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  timeoutMs: number = 5000
+): Promise<{ available: boolean; error?: string; workingUrl: string }> {
+  const normalized = normalizeOllamaUrl(baseUrl);
+  const candidates = [normalized];
 
-    const res = await fetch(`${baseUrl}/api/tags`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return res.ok;
-  } catch {
-    return false;
+  if (normalized.includes("localhost")) {
+    candidates.push(normalized.replace("localhost", "127.0.0.1"));
+  } else if (normalized.includes("127.0.0.1")) {
+    candidates.push(normalized.replace("127.0.0.1", "localhost"));
   }
+
+  let lastError = "";
+
+  for (const target of candidates) {
+    try {
+      const res = await fetch(`${target}/api/tags`, {
+        method: "GET",
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (res.ok) {
+        return { available: true, workingUrl: target };
+      }
+      lastError = `Server returned HTTP ${res.status}`;
+    } catch (err: any) {
+      lastError = err?.message || "Connection refused";
+    }
+  }
+
+  return { available: false, error: lastError, workingUrl: normalized };
 }
 
 /**
@@ -36,22 +63,31 @@ export async function checkOllamaAvailable(
  */
 export async function getOllamaModels(
   baseUrl: string = DEFAULT_OLLAMA_URL
-): Promise<string[]> {
+): Promise<{ models: string[]; workingUrl: string }> {
+  const check = await checkOllamaAvailable(baseUrl, 5000);
+  if (!check.available) {
+    return { models: [], workingUrl: check.workingUrl };
+  }
+
   try {
-    const res = await fetch(`${baseUrl}/api/tags`, {
+    const res = await fetch(`${check.workingUrl}/api/tags`, {
       method: "GET",
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return [];
+    if (!res.ok) return { models: [], workingUrl: check.workingUrl };
     const data = await res.json();
-    if (!Array.isArray(data.models)) return [];
+    if (!Array.isArray(data.models)) return { models: [], workingUrl: check.workingUrl };
+
     const names = data.models
       .map((m: any) => m.name || m.model)
-      .filter(Boolean) as string[];
-    // Remove duplicates
-    return Array.from(new Set(names));
+      .filter((n: string) => n && !n.startsWith("llamacpp:")); // Filter internal hashes
+
+    return {
+      models: Array.from(new Set(names)),
+      workingUrl: check.workingUrl,
+    };
   } catch {
-    return [];
+    return { models: [], workingUrl: check.workingUrl };
   }
 }
 
@@ -92,7 +128,8 @@ export async function generateOllamaContent(params: {
   systemInstruction?: string;
   timeoutMs?: number;
 }): Promise<string> {
-  const baseUrl = params.baseUrl || DEFAULT_OLLAMA_URL;
+  const targetCheck = await checkOllamaAvailable(params.baseUrl || DEFAULT_OLLAMA_URL, 5000);
+  const baseUrl = targetCheck.workingUrl;
   const model = params.model || DEFAULT_OLLAMA_MODEL;
   const messages = convertGeminiToOllamaMessages(params.contents, params.systemInstruction);
 
@@ -129,7 +166,8 @@ export async function streamOllamaChatAsGeminiSSE(params: {
   contents: Array<{ role: string; parts: Array<{ text: string }> }>;
   systemInstruction?: string;
 }): Promise<Response> {
-  const baseUrl = params.baseUrl || DEFAULT_OLLAMA_URL;
+  const targetCheck = await checkOllamaAvailable(params.baseUrl || DEFAULT_OLLAMA_URL, 5000);
+  const baseUrl = targetCheck.workingUrl;
   const model = params.model || DEFAULT_OLLAMA_MODEL;
   const messages = convertGeminiToOllamaMessages(params.contents, params.systemInstruction);
 

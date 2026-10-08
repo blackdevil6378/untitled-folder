@@ -9,47 +9,50 @@ import {
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url") || DEFAULT_OLLAMA_URL;
-  const isAvailable = await checkOllamaAvailable(url, 2000);
+  const check = await checkOllamaAvailable(url, 4000);
 
-  if (!isAvailable) {
+  if (!check.available) {
     return NextResponse.json({
       available: false,
       models: [],
-      message: `Ollama is not running on ${url}. Please start Ollama or check URL.`,
+      error: check.error,
+      message: `Ollama is not running on ${check.workingUrl}. Please make sure Ollama is running.`,
     });
   }
 
-  const models = await getOllamaModels(url);
+  const { models, workingUrl } = await getOllamaModels(check.workingUrl);
   return NextResponse.json({
     available: true,
     models,
+    workingUrl,
     defaultModel: models.includes("qwen3.5:2b") ? "qwen3.5:2b" : models[0] || DEFAULT_OLLAMA_MODEL,
   });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { action = "test", url = DEFAULT_OLLAMA_URL, model = DEFAULT_OLLAMA_MODEL } = body;
 
     if (action === "test") {
-      const isAvailable = await checkOllamaAvailable(url, 3000);
-      if (!isAvailable) {
+      const check = await checkOllamaAvailable(url, 5000);
+      if (!check.available) {
         return NextResponse.json(
           {
-            error: `Cannot reach Ollama at ${url}. Make sure Ollama application is running.`,
+            error: `Cannot reach Ollama at ${check.workingUrl} (${check.error || "Connection refused"}). Make sure the Ollama application is running.`,
           },
           { status: 503 }
         );
       }
 
-      const models = await getOllamaModels(url);
+      const { models, workingUrl } = await getOllamaModels(check.workingUrl);
       const chosenModel = models.includes(model) ? model : models[0] || model;
 
       return NextResponse.json({
         success: true,
         message: `Ollama is active! Connected to model '${chosenModel}'.`,
         models,
+        workingUrl,
       });
     }
 
