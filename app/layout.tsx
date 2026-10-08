@@ -1,11 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar, MobileTabBar } from "@/components/Navigation";
-import { AddPlaylistModal } from "@/components/AddPlaylistModal";
-import { YouTubePlayerModal } from "@/components/YouTubePlayerModal";
-import { PomodoroWidget } from "@/components/PomodoroWidget";
-import { CommandPalette } from "@/components/CommandPalette";
+import { AppShell } from "@/components/AppShell";
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -54,24 +50,7 @@ export default function RootLayout({
       className={`dark ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <body className="bg-[#07070c] text-gray-100 min-h-screen selection:bg-[#00f0ff]/30 selection:text-[#00f0ff] antialiased">
-        <div className="flex min-h-screen">
-          {/* Desktop Left Sidebar */}
-          <Sidebar />
-
-          {/* Main Content Area */}
-          <main className="flex-1 md:ml-64 pb-20 md:pb-8 min-h-screen">
-            {children}
-          </main>
-        </div>
-
-        {/* Mobile Navigation Tab Bar */}
-        <MobileTabBar />
-
-        {/* Global Overlays & Modals */}
-        <AddPlaylistModal />
-        <YouTubePlayerModal />
-        <PomodoroWidget />
-        <CommandPalette />
+        <AppShell>{children}</AppShell>
 
         {/* Toaster Notification Container */}
         <Toaster

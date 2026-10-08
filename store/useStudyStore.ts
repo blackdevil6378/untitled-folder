@@ -9,6 +9,7 @@ import {
   ChatThread,
   Settings,
   ChatMessage,
+  User,
 } from "@/types";
 import { generateId, toISODate } from "@/lib/utils";
 
@@ -20,6 +21,11 @@ interface StudyStoreState {
   sessions: StudySession[];
   threads: ChatThread[];
   settings: Settings;
+  user: User | null;
+  
+  // Auth Actions
+  login: (userData: { name: string; email: string; avatar?: string }) => void;
+  logout: () => void;
   
   // Ephemeral UI states
   activeVideoLecture: Lecture | null;
@@ -113,6 +119,24 @@ export const useStudyStore = create<StudyStoreState>()(
       sessions: [],
       threads: [],
       settings: defaultSettings,
+      user: null,
+
+      login: (userData) =>
+        set((state) => ({
+          user: {
+            id: generateId("usr"),
+            name: userData.name,
+            email: userData.email,
+            avatar: userData.avatar,
+            role: "Student",
+            createdAt: new Date().toISOString(),
+          },
+          settings: {
+            ...state.settings,
+            userName: userData.name || state.settings.userName,
+          },
+        })),
+      logout: () => set({ user: null }),
 
       activeVideoLecture: null,
       isAddPlaylistOpen: false,

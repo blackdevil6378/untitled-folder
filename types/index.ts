@@ -107,3 +107,13 @@ export interface ImportPreviewData {
   skippedCount: number;
   items: YouTubePlaylistItem[];
 }
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role?: string;
+  createdAt?: string;
+}
+

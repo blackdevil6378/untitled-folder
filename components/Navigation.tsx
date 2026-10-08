@@ -15,6 +15,9 @@ import {
   Search,
   Sparkles,
   Shield,
+  LogIn,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
 
@@ -33,6 +36,8 @@ export function Sidebar() {
   const setIsAddPlaylistOpen = useStudyStore((s) => s.setIsAddPlaylistOpen);
   const setIsPomodoroOpen = useStudyStore((s) => s.setIsPomodoroOpen);
   const setCommandPaletteOpen = useStudyStore((s) => s.setCommandPaletteOpen);
+  const user = useStudyStore((s) => s.user);
+  const logout = useStudyStore((s) => s.logout);
 
   return (
     <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#07070c]/90 backdrop-blur-xl border-r border-white/[0.08] z-30 select-none">
@@ -133,6 +138,38 @@ export function Sidebar() {
             Start
           </span>
         </button>
+      </div>
+
+      {/* User Auth Profile in Sidebar Footer */}
+      <div className="px-4 pb-4">
+        {user ? (
+          <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#00f0ff]/30 to-[#a855f7]/30 border border-white/20 flex items-center justify-center text-white text-xs font-bold uppercase shrink-0">
+                {user.name?.charAt(0) || "U"}
+              </div>
+              <div className="min-w-0 text-left">
+                <div className="text-xs font-semibold text-white truncate">{user.name}</div>
+                <div className="text-[10px] text-gray-400 truncate">{user.email}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => logout()}
+              title="Log Out"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-medium text-white transition-all group"
+          >
+            <LogIn className="w-3.5 h-3.5 text-[#00f0ff] group-hover:scale-110 transition-transform" />
+            <span>Sign In / Register</span>
+          </Link>
+        )}
       </div>
     </aside>
   );

@@ -15,6 +15,7 @@ import {
   BookOpen,
   ArrowRight,
   Shield,
+  LogIn,
 } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
 
@@ -87,6 +88,7 @@ export function CommandPalette() {
     { label: "AI Mentor Doubt Solver", href: "/ai-mentor", icon: BotMessageSquare },
     { label: "Analytics & Streaks", href: "/analytics", icon: BarChart3 },
     { label: "Settings & API Keys", href: "/settings", icon: Settings },
+    { label: "Login / Account", href: "/login", icon: LogIn },
   ].filter((nav) => nav.label.toLowerCase().includes(query.toLowerCase()));
 
   const handleSelectPage = (href: string) => {
