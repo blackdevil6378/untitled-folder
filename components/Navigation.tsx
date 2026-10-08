@@ -20,6 +20,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
+import { firebaseSignOut } from "@/lib/firebase";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -154,7 +155,10 @@ export function Sidebar() {
               </div>
             </div>
             <button
-              onClick={() => logout()}
+              onClick={async () => {
+                await firebaseSignOut();
+                logout();
+              }}
               title="Log Out"
               className="p-1.5 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0"
             >

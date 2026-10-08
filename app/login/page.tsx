@@ -18,13 +18,24 @@ import {
   BrainCircuit,
   Flame,
   Github,
+  CloudOff,
+  Cloud,
 } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
+import {
+  firebaseSignInWithEmail,
+  firebaseSignUpWithEmail,
+  firebaseSignInWithGoogle,
+  firebaseSignInWithGithub,
+  firebaseSignOut,
+  isFirebaseConfigured,
+} from "@/lib/firebase";
 import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
   const login = useStudyStore((s) => s.login);
+  const setFirebaseUid = useStudyStore((s) => s.setFirebaseUid);
   const currentUser = useStudyStore((s) => s.user);
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -35,7 +46,9 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Quick Demo Login
+  const firebaseReady = isFirebaseConfigured();
+
+  // Quick Demo Login (local only, no Firebase)
   const handleDemoLogin = () => {
     setIsLoading(true);
     setTimeout(() => {
@@ -49,8 +62,8 @@ export default function LoginPage() {
     }, 400);
   };
 
-  // Submit Handler
-  const handleSubmit = (e: React.FormEvent) => {
+  // Submit Handler — uses Firebase if configured, else local
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email.trim() || !password.trim()) {
@@ -64,37 +77,124 @@ export default function LoginPage() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      const displayName =
-        mode === "signup"
-          ? name.trim()
-          : email.split("@")[0].replace(/[._]/g, " ") || "Student";
 
-      login({
-        name: displayName,
-        email: email.trim(),
-      });
+    if (firebaseReady) {
+      // Firebase Auth
+      try {
+        let firebaseUser;
+        if (mode === "signup") {
+          firebaseUser = await firebaseSignUpWithEmail(
+            email.trim(),
+            password.trim(),
+            name.trim()
+          );
+          toast.success(`Account created! Welcome aboard, ${name.trim()}!`);
+        } else {
+          firebaseUser = await firebaseSignInWithEmail(
+            email.trim(),
+            password.trim()
+          );
+          toast.success(
+            `Signed in successfully. Welcome back, ${
+              firebaseUser.displayName || email.split("@")[0]
+            }!`
+          );
+        }
 
-      toast.success(
-        mode === "signup"
-          ? `Account created! Welcome aboard, ${displayName}!`
-          : `Signed in successfully. Welcome back, ${displayName}!`
-      );
-      router.push("/");
-    }, 500);
+        setFirebaseUid(firebaseUser.uid);
+        login({
+          name:
+            firebaseUser.displayName ||
+            (mode === "signup" ? name.trim() : email.split("@")[0]),
+          email: firebaseUser.email || email.trim(),
+          avatar: firebaseUser.photoURL || undefined,
+        });
+
+        router.push("/");
+      } catch (err: any) {
+        setIsLoading(false);
+        const code = err?.code || "";
+        if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
+          toast.error("No account found with this email. Try creating one!");
+        } else if (code === "auth/wrong-password") {
+          toast.error("Incorrect password. Please try again.");
+        } else if (code === "auth/email-already-in-use") {
+          toast.error("This email is already registered. Try signing in.");
+        } else if (code === "auth/weak-password") {
+          toast.error("Password should be at least 6 characters.");
+        } else if (code === "auth/invalid-email") {
+          toast.error("Invalid email address format.");
+        } else {
+          toast.error(err?.message || "Authentication failed. Please try again.");
+        }
+      }
+    } else {
+      // Local-only fallback (no Firebase configured)
+      setTimeout(() => {
+        const displayName =
+          mode === "signup"
+            ? name.trim()
+            : email.split("@")[0].replace(/[._]/g, " ") || "Student";
+
+        login({
+          name: displayName,
+          email: email.trim(),
+        });
+
+        toast.success(
+          mode === "signup"
+            ? `Account created! Welcome aboard, ${displayName}!`
+            : `Signed in successfully. Welcome back, ${displayName}!`
+        );
+        router.push("/");
+      }, 500);
+    }
   };
 
-  // Social Login Mock
-  const handleSocialLogin = (provider: "Google" | "GitHub") => {
+  // Social Login — uses Firebase if configured
+  const handleSocialLogin = async (provider: "Google" | "GitHub") => {
     setIsLoading(true);
-    setTimeout(() => {
-      login({
-        name: provider === "Google" ? "Google User" : "GitHub Developer",
-        email: `dev@${provider.toLowerCase()}.com`,
-      });
-      toast.success(`Signed in with ${provider}!`);
-      router.push("/");
-    }, 500);
+
+    if (firebaseReady) {
+      try {
+        const firebaseUser =
+          provider === "Google"
+            ? await firebaseSignInWithGoogle()
+            : await firebaseSignInWithGithub();
+
+        setFirebaseUid(firebaseUser.uid);
+        login({
+          name: firebaseUser.displayName || provider + " User",
+          email: firebaseUser.email || `dev@${provider.toLowerCase()}.com`,
+          avatar: firebaseUser.photoURL || undefined,
+        });
+
+        toast.success(`Signed in with ${provider}!`);
+        router.push("/");
+      } catch (err: any) {
+        setIsLoading(false);
+        const code = err?.code || "";
+        if (code === "auth/popup-closed-by-user") {
+          toast.info("Sign-in popup was closed.");
+        } else if (code === "auth/account-exists-with-different-credential") {
+          toast.error(
+            "An account already exists with the same email. Try another provider."
+          );
+        } else {
+          toast.error(err?.message || `${provider} sign-in failed.`);
+        }
+      }
+    } else {
+      // Local-only fallback
+      setTimeout(() => {
+        login({
+          name: provider === "Google" ? "Google User" : "GitHub Developer",
+          email: `dev@${provider.toLowerCase()}.com`,
+        });
+        toast.success(`Signed in with ${provider}! (Local mode)`);
+        router.push("/");
+      }, 500);
+    }
   };
 
   return (
@@ -145,6 +245,21 @@ export default function LoginPage() {
         <div className="rounded-3xl glass-panel bg-[#0d0e1a]/80 backdrop-blur-2xl border border-white/10 p-6 sm:p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden space-y-6">
           {/* Glowing Top Accent Border */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#00f0ff] via-[#a855f7] to-[#ff2e97]" />
+
+          {/* Firebase Status Indicator */}
+          <div className="flex items-center justify-center gap-2">
+            {firebaseReady ? (
+              <span className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+                <Cloud className="w-3 h-3" />
+                Cloud Sync Enabled
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full">
+                <CloudOff className="w-3 h-3" />
+                Local Mode — Add Firebase keys for cloud sync
+              </span>
+            )}
+          </div>
 
           {/* Quick Demo Login Option */}
           <button
@@ -234,7 +349,9 @@ export default function LoginPage() {
                     type="button"
                     onClick={() =>
                       toast.info(
-                        "Demo environment: Use Quick Demo Login or any password!"
+                        firebaseReady
+                          ? "Password reset: Coming soon! Contact support."
+                          : "Demo environment: Use Quick Demo Login or any password!"
                       )
                     }
                     className="text-[11px] text-[#00f0ff] hover:underline"
@@ -368,7 +485,9 @@ export default function LoginPage() {
 
         {/* Footer info */}
         <div className="text-center text-[10px] text-gray-500 font-mono">
-          🔒 Private & Encrypted Local Storage • No Trackers
+          {firebaseReady
+            ? "☁️ Cloud Synced • Firebase Auth • Cross-Device Access"
+            : "🔒 Private & Encrypted Local Storage • No Trackers"}
         </div>
       </div>
     </div>

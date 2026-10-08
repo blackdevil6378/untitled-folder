@@ -7,17 +7,22 @@ import { AddPlaylistModal } from "@/components/AddPlaylistModal";
 import { YouTubePlayerModal } from "@/components/YouTubePlayerModal";
 import { PomodoroWidget } from "@/components/PomodoroWidget";
 import { CommandPalette } from "@/components/CommandPalette";
+import { FirebaseAuthProvider } from "@/components/FirebaseAuthProvider";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = pathname === "/login";
 
   if (isAuthPage) {
-    return <main className="min-h-screen bg-[#07070c]">{children}</main>;
+    return (
+      <FirebaseAuthProvider>
+        <main className="min-h-screen bg-[#07070c]">{children}</main>
+      </FirebaseAuthProvider>
+    );
   }
 
   return (
-    <>
+    <FirebaseAuthProvider>
       <div className="flex min-h-screen">
         {/* Desktop Left Sidebar */}
         <Sidebar />
@@ -36,6 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <YouTubePlayerModal />
       <PomodoroWidget />
       <CommandPalette />
-    </>
+    </FirebaseAuthProvider>
   );
 }
+

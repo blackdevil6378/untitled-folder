@@ -22,10 +22,12 @@ interface StudyStoreState {
   threads: ChatThread[];
   settings: Settings;
   user: User | null;
+  firebaseUid: string | null;
   
   // Auth Actions
   login: (userData: { name: string; email: string; avatar?: string }) => void;
   logout: () => void;
+  setFirebaseUid: (uid: string | null) => void;
   
   // Ephemeral UI states
   activeVideoLecture: Lecture | null;
@@ -90,6 +92,10 @@ interface StudyStoreState {
   resetAllData: () => void;
   importAllData: (data: Partial<StudyStoreState>) => boolean;
   loadDemoData: () => void;
+  
+  // Sync Actions (for Firebase)
+  getSyncableData: () => Record<string, any>;
+  loadSyncedData: (data: Record<string, any>) => void;
 }
 
 const defaultSettings: Settings = {
@@ -120,11 +126,12 @@ export const useStudyStore = create<StudyStoreState>()(
       threads: [],
       settings: defaultSettings,
       user: null,
+      firebaseUid: null,
 
       login: (userData) =>
         set((state) => ({
           user: {
-            id: generateId("usr"),
+            id: state.firebaseUid || generateId("usr"),
             name: userData.name,
             email: userData.email,
             avatar: userData.avatar,
@@ -136,7 +143,8 @@ export const useStudyStore = create<StudyStoreState>()(
             userName: userData.name || state.settings.userName,
           },
         })),
-      logout: () => set({ user: null }),
+      logout: () => set({ user: null, firebaseUid: null }),
+      setFirebaseUid: (uid) => set({ firebaseUid: uid }),
 
       activeVideoLecture: null,
       isAddPlaylistOpen: false,
@@ -493,6 +501,31 @@ export const useStudyStore = create<StudyStoreState>()(
         }));
       },
 
+      // Sync Actions (for Firebase)
+      getSyncableData: () => {
+        const state = get();
+        return {
+          subjects: state.subjects,
+          playlists: state.playlists,
+          lectures: state.lectures,
+          events: state.events,
+          sessions: state.sessions,
+          threads: state.threads,
+          settings: state.settings,
+        };
+      },
+      loadSyncedData: (data) => {
+        set((state) => ({
+          subjects: data.subjects || state.subjects,
+          playlists: data.playlists || state.playlists,
+          lectures: data.lectures || state.lectures,
+          events: data.events || state.events,
+          sessions: data.sessions || state.sessions,
+          threads: data.threads || state.threads,
+          settings: data.settings ? { ...state.settings, ...data.settings } : state.settings,
+        }));
+      },
+
       // Reset
       resetAllData: () => {
         set({
@@ -733,6 +766,8 @@ export const useStudyStore = create<StudyStoreState>()(
         sessions: state.sessions,
         threads: state.threads,
         settings: state.settings,
+        user: state.user,
+        firebaseUid: state.firebaseUid,
       }),
     }
   )
