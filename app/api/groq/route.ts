@@ -81,7 +81,6 @@ export async function POST(req: NextRequest) {
             model: model,
             messages: messages,
             temperature: 0.7,
-            max_tokens: 2048,
             stream: true,
           }),
         });
@@ -117,7 +116,7 @@ export async function POST(req: NextRequest) {
                     const jsonStr = line.replace("data: ", "").trim();
                     if (jsonStr === "[DONE]") {
                       // Optionally send a [DONE] in Gemini style, though our frontend ignores it
-                      controller.enqueue(encoder.encode("data: [DONE]\\n\\n"));
+                      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
                       continue;
                     }
                     try {
@@ -136,7 +135,7 @@ export async function POST(req: NextRequest) {
                       };
                       
                       controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify(geminiFormat)}\\n\\n`)
+                        encoder.encode(`data: ${JSON.stringify(geminiFormat)}\n\n`)
                       );
                     } catch (e) {
                       // ignore parse errors for partial chunks
@@ -180,7 +179,6 @@ export async function POST(req: NextRequest) {
             model: model,
             messages: messages,
             temperature: 0.7,
-            max_tokens: 2048,
           }),
         });
 

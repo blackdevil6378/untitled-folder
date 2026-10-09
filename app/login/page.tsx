@@ -101,6 +101,21 @@ export default function LoginPage() {
         avatar: firebaseUser.photoURL || undefined,
       });
 
+      // Load data from MongoDB
+      try {
+        const res = await fetch("/api/sync", {
+          headers: { "x-user-uid": firebaseUser.uid },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.state) {
+            useStudyStore.getState().loadSyncedData(data.state);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to sync from cloud", err);
+      }
+
       router.push("/");
     } catch (err: any) {
       setIsLoading(false);
@@ -143,6 +158,21 @@ export default function LoginPage() {
         email: firebaseUser.email || `dev@${provider.toLowerCase()}.com`,
         avatar: firebaseUser.photoURL || undefined,
       });
+
+      // Load data from MongoDB
+      try {
+        const res = await fetch("/api/sync", {
+          headers: { "x-user-uid": firebaseUser.uid },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.state) {
+            useStudyStore.getState().loadSyncedData(data.state);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to sync from cloud", err);
+      }
 
       toast.success(`Signed in with ${provider}!`);
       router.push("/");

@@ -1,0 +1,1 @@
+import mongoose from 'mongoose'; mongoose.connect('mongodb+srv://yashpatel33787_db_user:aE8AEGKcgTjkiV8c@study-tracker.g15ngjk.mongodb.net/?appName=study-tracker').then(() => { console.log('✅ Connection to MongoDB Successful!'); process.exit(0); }).catch(e => { console.error('❌ Connection failed:', e); process.exit(1); });

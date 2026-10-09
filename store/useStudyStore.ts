@@ -774,3 +774,23 @@ export const useStudyStore = create<StudyStoreState>()(
     }
   )
 );
+
+if (typeof window !== "undefined") {
+  let debounceTimer: ReturnType<typeof setTimeout>;
+  useStudyStore.subscribe((state, prevState) => {
+    if (!state.firebaseUid) return;
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const data = state.getSyncableData();
+      fetch("/api/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-uid": state.firebaseUid,
+        },
+        body: JSON.stringify({ state: data }),
+      }).catch((err) => console.error("Failed to sync to MongoDB:", err));
+    }, 5000);
+  });
+}
