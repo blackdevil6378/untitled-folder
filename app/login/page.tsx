@@ -48,19 +48,6 @@ export default function LoginPage() {
 
   const firebaseReady = isFirebaseConfigured();
 
-  // Quick Demo Login (local only, no Firebase)
-  const handleDemoLogin = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      login({
-        name: "Yash (Aspirant)",
-        email: "yash@studytracker.ai",
-        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-      });
-      toast.success("Welcome back, Yash! Logged in via Quick Demo.");
-      router.push("/");
-    }, 400);
-  };
 
   // Submit Handler — uses Firebase if configured, else local
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,76 +65,59 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    if (firebaseReady) {
-      // Firebase Auth
-      try {
-        let firebaseUser;
-        if (mode === "signup") {
-          firebaseUser = await firebaseSignUpWithEmail(
-            email.trim(),
-            password.trim(),
-            name.trim()
-          );
-          toast.success(`Account created! Welcome aboard, ${name.trim()}!`);
-        } else {
-          firebaseUser = await firebaseSignInWithEmail(
-            email.trim(),
-            password.trim()
-          );
-          toast.success(
-            `Signed in successfully. Welcome back, ${
-              firebaseUser.displayName || email.split("@")[0]
-            }!`
-          );
-        }
+    if (!firebaseReady) {
+      toast.error("Firebase is not configured! Check your environment variables.");
+      setIsLoading(false);
+      return;
+    }
 
-        setFirebaseUid(firebaseUser.uid);
-        login({
-          name:
-            firebaseUser.displayName ||
-            (mode === "signup" ? name.trim() : email.split("@")[0]),
-          email: firebaseUser.email || email.trim(),
-          avatar: firebaseUser.photoURL || undefined,
-        });
-
-        router.push("/");
-      } catch (err: any) {
-        setIsLoading(false);
-        const code = err?.code || "";
-        if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
-          toast.error("No account found with this email. Try creating one!");
-        } else if (code === "auth/wrong-password") {
-          toast.error("Incorrect password. Please try again.");
-        } else if (code === "auth/email-already-in-use") {
-          toast.error("This email is already registered. Try signing in.");
-        } else if (code === "auth/weak-password") {
-          toast.error("Password should be at least 6 characters.");
-        } else if (code === "auth/invalid-email") {
-          toast.error("Invalid email address format.");
-        } else {
-          toast.error(err?.message || "Authentication failed. Please try again.");
-        }
-      }
-    } else {
-      // Local-only fallback (no Firebase configured)
-      setTimeout(() => {
-        const displayName =
-          mode === "signup"
-            ? name.trim()
-            : email.split("@")[0].replace(/[._]/g, " ") || "Student";
-
-        login({
-          name: displayName,
-          email: email.trim(),
-        });
-
-        toast.success(
-          mode === "signup"
-            ? `Account created! Welcome aboard, ${displayName}!`
-            : `Signed in successfully. Welcome back, ${displayName}!`
+    try {
+      let firebaseUser;
+      if (mode === "signup") {
+        firebaseUser = await firebaseSignUpWithEmail(
+          email.trim(),
+          password.trim(),
+          name.trim()
         );
-        router.push("/");
-      }, 500);
+        toast.success(`Account created! Welcome aboard, ${name.trim()}!`);
+      } else {
+        firebaseUser = await firebaseSignInWithEmail(
+          email.trim(),
+          password.trim()
+        );
+        toast.success(
+          `Signed in successfully. Welcome back, ${
+            firebaseUser.displayName || email.split("@")[0]
+          }!`
+        );
+      }
+
+      setFirebaseUid(firebaseUser.uid);
+      login({
+        name:
+          firebaseUser.displayName ||
+          (mode === "signup" ? name.trim() : email.split("@")[0]),
+        email: firebaseUser.email || email.trim(),
+        avatar: firebaseUser.photoURL || undefined,
+      });
+
+      router.push("/");
+    } catch (err: any) {
+      setIsLoading(false);
+      const code = err?.code || "";
+      if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
+        toast.error("No account found with this email. Try creating one!");
+      } else if (code === "auth/wrong-password") {
+        toast.error("Incorrect password. Please try again.");
+      } else if (code === "auth/email-already-in-use") {
+        toast.error("This email is already registered. Try signing in.");
+      } else if (code === "auth/weak-password") {
+        toast.error("Password should be at least 6 characters.");
+      } else if (code === "auth/invalid-email") {
+        toast.error("Invalid email address format.");
+      } else {
+        toast.error(err?.message || "Authentication failed. Please try again.");
+      }
     }
   };
 
@@ -155,45 +125,39 @@ export default function LoginPage() {
   const handleSocialLogin = async (provider: "Google" | "GitHub") => {
     setIsLoading(true);
 
-    if (firebaseReady) {
-      try {
-        const firebaseUser =
-          provider === "Google"
-            ? await firebaseSignInWithGoogle()
-            : await firebaseSignInWithGithub();
+    if (!firebaseReady) {
+      toast.error("Firebase is not configured! Check your environment variables.");
+      setIsLoading(false);
+      return;
+    }
 
-        setFirebaseUid(firebaseUser.uid);
-        login({
-          name: firebaseUser.displayName || provider + " User",
-          email: firebaseUser.email || `dev@${provider.toLowerCase()}.com`,
-          avatar: firebaseUser.photoURL || undefined,
-        });
+    try {
+      const firebaseUser =
+        provider === "Google"
+          ? await firebaseSignInWithGoogle()
+          : await firebaseSignInWithGithub();
 
-        toast.success(`Signed in with ${provider}!`);
-        router.push("/");
-      } catch (err: any) {
-        setIsLoading(false);
-        const code = err?.code || "";
-        if (code === "auth/popup-closed-by-user") {
-          toast.info("Sign-in popup was closed.");
-        } else if (code === "auth/account-exists-with-different-credential") {
-          toast.error(
-            "An account already exists with the same email. Try another provider."
-          );
-        } else {
-          toast.error(err?.message || `${provider} sign-in failed.`);
-        }
+      setFirebaseUid(firebaseUser.uid);
+      login({
+        name: firebaseUser.displayName || provider + " User",
+        email: firebaseUser.email || `dev@${provider.toLowerCase()}.com`,
+        avatar: firebaseUser.photoURL || undefined,
+      });
+
+      toast.success(`Signed in with ${provider}!`);
+      router.push("/");
+    } catch (err: any) {
+      setIsLoading(false);
+      const code = err?.code || "";
+      if (code === "auth/popup-closed-by-user") {
+        toast.info("Sign-in popup was closed.");
+      } else if (code === "auth/account-exists-with-different-credential") {
+        toast.error(
+          "An account already exists with the same email. Try another provider."
+        );
+      } else {
+        toast.error(err?.message || `${provider} sign-in failed.`);
       }
-    } else {
-      // Local-only fallback
-      setTimeout(() => {
-        login({
-          name: provider === "Google" ? "Google User" : "GitHub Developer",
-          email: `dev@${provider.toLowerCase()}.com`,
-        });
-        toast.success(`Signed in with ${provider}! (Local mode)`);
-        router.push("/");
-      }, 500);
     }
   };
 
@@ -261,19 +225,6 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Quick Demo Login Option */}
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#00f0ff]/15 to-[#a855f7]/15 hover:from-[#00f0ff]/25 hover:to-[#a855f7]/25 border border-[#00f0ff]/40 text-xs font-bold text-white transition-all shadow-[0_0_15px_rgba(0,240,255,0.2)] hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] cursor-pointer group"
-          >
-            <Zap className="w-4 h-4 text-[#00f0ff] group-hover:scale-110 transition-transform fill-[#00f0ff]/20" />
-            <span>⚡ 1-Click Quick Demo Login</span>
-            <span className="ml-auto text-[10px] font-mono bg-[#00f0ff]/20 text-[#00f0ff] px-2 py-0.5 rounded-full border border-[#00f0ff]/40">
-              Instant
-            </span>
-          </button>
 
           {/* Tab Switcher */}
           <div className="flex p-1 rounded-xl bg-white/[0.04] border border-white/10">
