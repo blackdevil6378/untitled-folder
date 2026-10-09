@@ -787,7 +787,7 @@ if (typeof window !== "undefined") {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-uid": state.firebaseUid,
+          "x-user-uid": state.firebaseUid!,
         },
         body: JSON.stringify({ state: data }),
       }).catch((err) => console.error("Failed to sync to MongoDB:", err));

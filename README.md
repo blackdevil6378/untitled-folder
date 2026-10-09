@@ -57,7 +57,7 @@
    - Auto-logs completed Pomodoro minutes directly to your study heatmap and analytics.
    - Scheduled daily browser notifications & evening streak-saver nudges.
    - Global keyboard shortcuts: `⌘K` / `Ctrl+K` for command palette, `N` for new playlist, `C` for calendar, `A` for AI mentor.
-   - 100% client-side privacy: state persisted in `localStorage` with JSON export/import and quota monitoring.
+   - **Local-First Cloud Architecture**: App loads instantly from `localStorage` for offline support, while securely syncing your progress, notes, and settings across devices via MongoDB.
 
 ---
 
@@ -65,7 +65,7 @@
 
 - **Framework**: Next.js 14+ (App Router), TypeScript
 - **Styling**: Tailwind CSS (Dark theme `#07070c`, Glassmorphism, Neon cyan/purple/pink accents)
-- **State Management**: Zustand with `persist` middleware
+- **State Management**: Zustand with `persist` middleware + MongoDB Cloud Sync
 - **Visuals & Charts**: Recharts, Framer Motion, Lucide Icons
 - **Markdown & Math**: `react-markdown`, `remark-gfm`, `remark-math`, `rehype-katex`, `katex`
 - **Notifications**: Web Notifications API + Service Worker (`/sw.js`)
@@ -75,7 +75,7 @@
 
 ## 🔑 How to Get Your Free API Keys
 
-> **Note**: Both keys are optional to explore demo courses, but required for live YouTube imports and Gemini AI chat. Keys are stored solely in your local browser and sent through standard request headers to Next.js API routes (`/api/gemini` and `/api/youtube`). They are **never hardcoded and never logged**.
+> **Note**: Both keys are optional to explore demo courses, but required for live YouTube imports and AI chat. Keys are saved to your local browser and automatically synced to your private MongoDB account for cross-device access. They are sent through standard request headers to Next.js API routes (`/api/gemini`, `/api/groq`, etc). They are **never hardcoded**.
 
 ### 1. Google Gemini API Key (Free)
 1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey).
