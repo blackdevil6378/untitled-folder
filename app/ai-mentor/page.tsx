@@ -157,6 +157,10 @@ ${JSON.stringify(progressSummary, null, 2)}`;
       setErrorMessage("Gemini API Key is not set. Please add it in Settings or switch to Local Ollama.");
       return;
     }
+    if (!settings.groqKey && settings.aiProvider === "groq") {
+      setErrorMessage("Groq API Key is not set. Please add it in Settings.");
+      return;
+    }
 
     setErrorMessage(null);
     setInputMessage("");
@@ -183,19 +187,26 @@ ${JSON.stringify(progressSummary, null, 2)}`;
     setIsStreaming(true);
     abortControllerRef.current = new AbortController();
 
+    const isGroq = settings.aiProvider === "groq";
+    const endpoint = isGroq ? "/api/groq" : "/api/gemini";
+    const targetModel = isGroq 
+      ? (settings.groqModel || "llama3-8b-8192") 
+      : (settings.geminiModel || "gemini-3.8-flash");
+
     try {
-      const res = await fetch("/api/gemini", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-gemini-key": settings.geminiKey || "",
+          "x-groq-key": settings.groqKey || "",
           "x-ollama-url": settings.ollamaUrl || "http://127.0.0.1:11434",
           "x-ollama-model": settings.ollamaModel || "qwen3.5:2b",
           "x-ai-provider": settings.aiProvider || "auto",
         },
         body: JSON.stringify({
           action: "chat_stream",
-          model: settings.geminiModel || "gemini-3.8-flash",
+          model: targetModel,
           systemInstruction: buildSystemInstruction(),
           contents,
         }),
@@ -346,7 +357,9 @@ ${JSON.stringify(progressSummary, null, 2)}`;
             <h1 className="text-xl sm:text-2xl font-black text-white font-heading flex items-center gap-2">
               <span>AI Study Mentor</span>
               <span className="text-xs font-mono font-normal px-2 py-0.5 rounded-full bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/30">
-                {settings.geminiModel || "gemini-3.8-flash"}
+                {settings.aiProvider === "groq" 
+                  ? (settings.groqModel || "llama3-8b-8192")
+                  : (settings.geminiModel || "gemini-3.8-flash")}
               </span>
             </h1>
             <p className="text-xs text-gray-400">

@@ -82,7 +82,10 @@ export default function DashboardPage() {
 
   // Generate / Fetch AI Briefing
   const fetchAiBriefing = async () => {
-    if (!settings.geminiKey) {
+    const isGroq = settings.aiProvider === "groq";
+    const hasKey = isGroq ? settings.groqKey : settings.geminiKey;
+    
+    if (!hasKey && settings.aiProvider !== "ollama") {
       setAiBriefing(
         settings.language === "hinglish"
           ? `Focus on consistency aaj! Target: ${dailyGoal} lectures. Agar thoda mushkil lage, ek 25-min Pomodoro se shuru karo. Let's conquer it!`
@@ -106,18 +109,24 @@ export default function DashboardPage() {
 Provide a punchy 2-sentence morning briefing in ${settings.language} (casual tone, real-life analogy, actionable focus).
 Current status JSON: ${JSON.stringify(summaryPayload)}`;
 
-      const res = await fetch("/api/gemini", {
+      const endpoint = isGroq ? "/api/groq" : "/api/gemini";
+      const targetModel = isGroq 
+        ? (settings.groqModel || "llama3-8b-8192") 
+        : (settings.geminiModel || "gemini-3.8-flash");
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-gemini-key": settings.geminiKey || "",
+          "x-groq-key": settings.groqKey || "",
           "x-ollama-url": settings.ollamaUrl || "http://127.0.0.1:11434",
           "x-ollama-model": settings.ollamaModel || "qwen3.5:2b",
           "x-ai-provider": settings.aiProvider || "auto",
         },
         body: JSON.stringify({
           action: "generate",
-          model: settings.geminiModel || "gemini-3.8-flash",
+          model: targetModel,
           contents: [{ parts: [{ text: promptText }] }],
         }),
       });
